@@ -30,13 +30,12 @@ model Payment {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  yoomoneyId String 
+  yoomoneyId String @unique
   status String
   amount Decimal
   currency String
   description String
   paid Boolean @default(false)
-  refundable Boolean
   metadata Json
   paymentMethodId String?
   paymentMethod Json?

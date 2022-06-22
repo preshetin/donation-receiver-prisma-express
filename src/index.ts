@@ -45,7 +45,6 @@ app.get('/donate', async (req, res) => {
         currency: payment.amount.currency,
         description: payment.description,
         paid: payment.paid,
-        refundable: payment.refundable,
         metadata: payment.metadata,
         paymentMethod: payment.payment_method as unknown as Prisma.JsonObject,
         paymentMethodId: payment.payment_method_id,
@@ -65,6 +64,44 @@ app.get('/donate', async (req, res) => {
 
 })
 
+app.get(`/payment/:id`, async (req, res) => {
+  const { id }: { id?: string } = req.params
+
+  const payment = await prisma.payment.findUnique({
+    where: { id: Number(id) },
+  })
+  res.json(payment)
+})
+
+
+app.post(`/notification`, async (req, res) => {
+  console.log('webhook request', req.body, JSON.stringify(req.body))
+  const object = req.body.object as Payment
+  console.log(111)
+
+  // look for payment by id
+  // if payment exist, update it's status
+
+  const payment = await prisma.payment.findUnique({
+    where: { yoomoneyId: object.id }
+  })
+  console.log('payment from db', payment)
+
+  if (payment !== null) {
+    console.log('before update, payment id', payment.id)
+    const updatedPayment = await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: object.status,
+        paid: object.paid
+      }
+    })
+    console.log('update finish, updated payment', updatedPayment)
+  }
+
+  res.json({hey: 'all good', initialRequest: req.body})
+  // res.json(result)
+})
 
 app.post(`/signup`, async (req, res) => {
   const { name, email, posts } = req.body
