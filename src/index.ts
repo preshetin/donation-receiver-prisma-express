@@ -1,10 +1,70 @@
 import { Prisma, PrismaClient } from '@prisma/client'
 import express from 'express'
+import { Payment } from '@a2seven/yoo-checkout';
 
 const prisma = new PrismaClient()
 const app = express()
 
 app.use(express.json())
+
+app.get('/donate', async (req, res) => {
+  const { amount, purpose } = req.query
+
+  const { YooCheckout } = require('@a2seven/yoo-checkout')
+  const checkout = new YooCheckout({
+    shopId: process.env.YANDEX_CHECKOUT_SHOP_ID,
+    secretKey: process.env.YANDEX_CHECKOUT_SECRET
+  });
+
+  const paymentParams = {
+    'amount': {
+      'value': amount,
+      'currency': 'RUB'
+    },
+    'capture': true,
+    'payment_method_data': {
+      'type': 'bank_card'
+    },
+    'description': purpose,
+    'confirmation': {
+      'type': 'redirect',
+      'return_url': 'https://www.merchant-website.com/return_url'
+    }
+  };
+
+  var idempotenceKey = Date.now(); // i think it should come from the request...
+
+  try {
+    const payment = await checkout.createPayment(paymentParams, idempotenceKey) as Payment;
+
+    const result = await prisma.payment.create({
+      data: {
+        yoomoneyId: payment.id,
+        status: payment.status,
+        amount: payment.amount.value,
+        currency: payment.amount.currency,
+        description: payment.description,
+        paid: payment.paid,
+        refundable: payment.refundable,
+        metadata: payment.metadata,
+        paymentMethod: payment.payment_method as unknown as Prisma.JsonObject,
+        paymentMethodId: payment.payment_method_id,
+      }
+    })
+    // await dynamoDbLib.call("put", buildParams(requestParams, payment));
+    // return success({ status: true, confirmation: payment.confirmation });
+    res.json({
+      payment,
+      result
+    })
+  } catch (err) {
+    console.log('error',err);
+    // return failure({ status: false });
+    res.json(err)
+  }
+
+})
+
 
 app.post(`/signup`, async (req, res) => {
   const { name, email, posts } = req.body

@@ -25,3 +25,19 @@ model Post {
   author    User?    @relation(fields: [authorId], references: [id])
   authorId  Int?
 }
+
+model Payment {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  yoomoneyId String 
+  status String
+  amount Decimal
+  currency String
+  description String
+  paid Boolean @default(false)
+  refundable Boolean
+  metadata Json
+  paymentMethodId String?
+  paymentMethod Json?
+}
