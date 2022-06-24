@@ -33,6 +33,8 @@ model Payment {
   yoomoneyId String @unique
   status String
   amount Decimal
+  email String
+  isAutomatic Boolean @default(false)
   currency String
   description String
   paid Boolean @default(false)

@@ -1,5 +1,5 @@
 import { Prisma, PrismaClient } from '@prisma/client'
-import express from 'express'
+import express, { Request } from 'express'
 import { Payment } from '@a2seven/yoo-checkout';
 
 const prisma = new PrismaClient()
@@ -8,7 +8,8 @@ const app = express()
 app.use(express.json())
 
 app.get('/donate', async (req, res) => {
-  const { amount, purpose } = req.query
+  const { amount, purpose, email, isMonthly } = req.query
+  if (!email) return res.sendStatus(400)
 
   const { YooCheckout } = require('@a2seven/yoo-checkout')
   const checkout = new YooCheckout({
@@ -16,7 +17,7 @@ app.get('/donate', async (req, res) => {
     secretKey: process.env.YANDEX_CHECKOUT_SECRET
   });
 
-  const paymentParams = {
+  const paymentParams: any = {
     'amount': {
       'value': amount,
       'currency': 'RUB'
@@ -32,6 +33,11 @@ app.get('/donate', async (req, res) => {
     }
   };
 
+  if (isMonthly) {
+    // technically the docs say 'true' as string
+    paymentParams.save_payment_method = true; 
+  }
+
   var idempotenceKey = Date.now(); // i think it should come from the request...
 
   try {
@@ -44,6 +50,7 @@ app.get('/donate', async (req, res) => {
         amount: payment.amount.value,
         currency: payment.amount.currency,
         description: payment.description,
+        email: email as string,
         paid: payment.paid,
         metadata: payment.metadata,
         paymentMethod: payment.payment_method as unknown as Prisma.JsonObject,
@@ -59,7 +66,7 @@ app.get('/donate', async (req, res) => {
   } catch (err) {
     console.log('error',err);
     // return failure({ status: false });
-    res.json(err)
+    res.json(err as {})
   }
 
 })
