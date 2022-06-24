@@ -111,7 +111,7 @@ app.post(`/notification`, async (req, res) => {
 })
 
 app.post(`/signup`, async (req, res) => {
-  const { name, email, posts } = req.body
+  const { name, email, acceptTermsAndConditions, posts } = req.body
 
   const postData = posts?.map((post: Prisma.PostCreateInput) => {
     return { title: post?.title, content: post?.content }
@@ -121,6 +121,7 @@ app.post(`/signup`, async (req, res) => {
     data: {
       name,
       email,
+      acceptTermsAndConditions,
       posts: {
         create: postData,
       },
