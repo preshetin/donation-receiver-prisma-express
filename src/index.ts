@@ -1,121 +1,90 @@
-import { Prisma, PrismaClient } from '@prisma/client'
-import express, { Request } from 'express'
-import { Payment } from '@a2seven/yoo-checkout';
+import { Prisma, PrismaClient } from "@prisma/client";
+import { Context } from "../context";
+import express, { Request } from "express";
+import { DonateInput, makePaymentInput } from "./donationService";
+import { Payment, YooCheckout } from "@a2seven/yoo-checkout";
 
-const prisma = new PrismaClient()
-const app = express()
+const prisma = new PrismaClient();
+const yooCheckout = new YooCheckout({
+  shopId: process.env.YANDEX_CHECKOUT_SHOP_ID as string,
+  secretKey: process.env.YANDEX_CHECKOUT_SECRET as string,
+});
 
-app.use(express.json())
+const app = express();
 
-app.get('/donate', async (req, res) => {
-  const { amount, purpose, email, isMonthly } = req.query
-  if (!email) return res.sendStatus(400)
+app.use(express.json());
 
-  const { YooCheckout } = require('@a2seven/yoo-checkout')
-  const checkout = new YooCheckout({
-    shopId: process.env.YANDEX_CHECKOUT_SHOP_ID,
-    secretKey: process.env.YANDEX_CHECKOUT_SECRET
-  });
+app.get("/donate", async (req, res) => {
+  const { amount, purpose, email, isMonthly } = req.query;
+  if (!email) return res.sendStatus(400);
 
-  const paymentParams: any = {
-    'amount': {
-      'value': amount,
-      'currency': 'RUB'
-    },
-    'capture': true,
-    'payment_method_data': {
-      'type': 'bank_card'
-    },
-    'description': purpose,
-    'confirmation': {
-      'type': 'redirect',
-      'return_url': 'https://www.merchant-website.com/return_url'
-    }
+  const input: DonateInput = {
+    amount: (amount as unknown) as number,
+    purpose: (purpose as unknown) as string,
+    email: (email as unknown) as string,
+    isMonthly: (isMonthly as unknown) as string,
   };
 
-  if (isMonthly) {
-    // technically the docs say 'true' as string
-    paymentParams.save_payment_method = true; 
-  }
-
-  var idempotenceKey = Date.now(); // i think it should come from the request...
-
   try {
-    const payment = await checkout.createPayment(paymentParams, idempotenceKey) as Payment;
+    const donationInput = await makePaymentInput(input, {
+      prisma,
+      yooCheckout,
+    });
 
     const result = await prisma.payment.create({
-      data: {
-        yoomoneyId: payment.id,
-        status: payment.status,
-        amount: payment.amount.value,
-        currency: payment.amount.currency,
-        description: payment.description,
-        email: email as string,
-        paid: payment.paid,
-        metadata: payment.metadata,
-        paymentMethod: payment.payment_method as unknown as Prisma.JsonObject,
-        paymentMethodId: payment.payment_method_id,
-      }
-    })
-    // await dynamoDbLib.call("put", buildParams(requestParams, payment));
-    // return success({ status: true, confirmation: payment.confirmation });
-    res.json({
-      payment,
-      result
-    })
-  } catch (err) {
-    console.log('error',err);
-    // return failure({ status: false });
-    res.json(err as {})
-  }
+      data: donationInput,
+    });
 
-})
+    res.json(result);
+  } catch (err) {
+    res.json(err);
+  }
+});
 
 app.get(`/payment/:id`, async (req, res) => {
-  const { id }: { id?: string } = req.params
+  const { id }: { id?: string } = req.params;
 
   const payment = await prisma.payment.findUnique({
     where: { id: Number(id) },
-  })
-  res.json(payment)
-})
-
+  });
+  res.json(payment);
+});
 
 app.post(`/notification`, async (req, res) => {
-  console.log('webhook request', req.body, JSON.stringify(req.body))
-  const object = req.body.object as Payment
-  console.log(111)
+  console.log("webhook request", req.body, JSON.stringify(req.body));
+  const object = req.body.object as Payment;
+  console.log(111);
 
   // look for payment by id
   // if payment exist, update it's status
 
   const payment = await prisma.payment.findUnique({
-    where: { yoomoneyId: object.id }
-  })
-  console.log('payment from db', payment)
+    where: { yoomoneyId: object.id },
+  });
+  console.log("payment from db", payment);
 
   if (payment !== null) {
-    console.log('before update, payment id', payment.id)
+    console.log("before update, payment id", payment.id);
     const updatedPayment = await prisma.payment.update({
       where: { id: payment.id },
       data: {
         status: object.status,
-        paid: object.paid
-      }
-    })
-    console.log('update finish, updated payment', updatedPayment)
+        paid: object.paid,
+      },
+    });
+    console.log("update finish, updated payment", updatedPayment);
   }
 
-  res.json({hey: 'all good', initialRequest: req.body})
+  res.json({ hey: "all good", initialRequest: req.body });
   // res.json(result)
-})
+});
 
 app.post(`/signup`, async (req, res) => {
-  const { name, email, acceptTermsAndConditions, posts } = req.body
+  const { name, email, acceptTermsAndConditions, posts } = req.body;
 
   const postData = posts?.map((post: Prisma.PostCreateInput) => {
-    return { title: post?.title, content: post?.content }
-  })
+    return { title: post?.title, content: post?.content };
+  });
 
   const result = await prisma.user.create({
     data: {
@@ -126,24 +95,24 @@ app.post(`/signup`, async (req, res) => {
         create: postData,
       },
     },
-  })
-  res.json(result)
-})
+  });
+  res.json(result);
+});
 
 app.post(`/post`, async (req, res) => {
-  const { title, content, authorEmail } = req.body
+  const { title, content, authorEmail } = req.body;
   const result = await prisma.post.create({
     data: {
       title,
       content,
       author: { connect: { email: authorEmail } },
     },
-  })
-  res.json(result)
-})
+  });
+  res.json(result);
+});
 
-app.put('/post/:id/views', async (req, res) => {
-  const { id } = req.params
+app.put("/post/:id/views", async (req, res) => {
+  const { id } = req.params;
 
   try {
     const post = await prisma.post.update({
@@ -153,16 +122,16 @@ app.put('/post/:id/views', async (req, res) => {
           increment: 1,
         },
       },
-    })
+    });
 
-    res.json(post)
+    res.json(post);
   } catch (error) {
-    res.json({ error: `Post with ID ${id} does not exist in the database` })
+    res.json({ error: `Post with ID ${id} does not exist in the database` });
   }
-})
+});
 
-app.put('/publish/:id', async (req, res) => {
-  const { id } = req.params
+app.put("/publish/:id", async (req, res) => {
+  const { id } = req.params;
 
   try {
     const postData = await prisma.post.findUnique({
@@ -170,35 +139,35 @@ app.put('/publish/:id', async (req, res) => {
       select: {
         published: true,
       },
-    })
+    });
 
     const updatedPost = await prisma.post.update({
       where: { id: Number(id) || undefined },
       data: { published: !postData?.published },
-    })
-    res.json(updatedPost)
+    });
+    res.json(updatedPost);
   } catch (error) {
-    res.json({ error: `Post with ID ${id} does not exist in the database` })
+    res.json({ error: `Post with ID ${id} does not exist in the database` });
   }
-})
+});
 
 app.delete(`/post/:id`, async (req, res) => {
-  const { id } = req.params
+  const { id } = req.params;
   const post = await prisma.post.delete({
     where: {
       id: Number(id),
     },
-  })
-  res.json(post)
-})
+  });
+  res.json(post);
+});
 
-app.get('/users', async (req, res) => {
-  const users = await prisma.user.findMany()
-  res.json(users)
-})
+app.get("/users", async (req, res) => {
+  const users = await prisma.user.findMany();
+  res.json(users);
+});
 
-app.get('/user/:id/drafts', async (req, res) => {
-  const { id } = req.params
+app.get("/user/:id/drafts", async (req, res) => {
+  const { id } = req.params;
 
   const drafts = await prisma.user
     .findUnique({
@@ -208,22 +177,22 @@ app.get('/user/:id/drafts', async (req, res) => {
     })
     .posts({
       where: { published: false },
-    })
+    });
 
-  res.json(drafts)
-})
+  res.json(drafts);
+});
 
 app.get(`/post/:id`, async (req, res) => {
-  const { id }: { id?: string } = req.params
+  const { id }: { id?: string } = req.params;
 
   const post = await prisma.post.findUnique({
     where: { id: Number(id) },
-  })
-  res.json(post)
-})
+  });
+  res.json(post);
+});
 
-app.get('/feed', async (req, res) => {
-  const { searchString, skip, take, orderBy } = req.query
+app.get("/feed", async (req, res) => {
+  const { searchString, skip, take, orderBy } = req.query;
 
   const or: Prisma.PostWhereInput = searchString
     ? {
@@ -232,7 +201,7 @@ app.get('/feed', async (req, res) => {
           { content: { contains: searchString as string } },
         ],
       }
-    : {}
+    : {};
 
   const posts = await prisma.post.findMany({
     where: {
@@ -245,13 +214,13 @@ app.get('/feed', async (req, res) => {
     orderBy: {
       updatedAt: orderBy as Prisma.SortOrder,
     },
-  })
+  });
 
-  res.json(posts)
-})
+  res.json(posts);
+});
 
 const server = app.listen(3000, () =>
   console.log(`
 🚀 Server ready at: http://localhost:3000
-⭐️ See sample requests: http://pris.ly/e/ts/rest-express#3-using-the-rest-api`),
-)
+⭐️ See sample requests: http://pris.ly/e/ts/rest-express#3-using-the-rest-api`)
+);
