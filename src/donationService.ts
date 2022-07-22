@@ -1,15 +1,14 @@
 import { Context } from "../context";
 import { YooCheckout } from "@a2seven/yoo-checkout";
-import { Payment } from "@prisma/client";
 
-export interface DonateInput {
+export interface DonateRequestInput {
   amount: number;
   purpose: string;
   email: string;
   isMonthly: string;
 }
 
-export async function makePaymentInput(donateInput: DonateInput, ctx: Context) {
+export async function makeDonationInput(donateInput: DonateRequestInput, ctx: Context) {
   console.log("YANDEX_CHECKOUT_SHOP_ID", process.env.YANDEX_CHECKOUT_SHOP_ID);
 
   const paymentParams: any = buildYookassaCreatePaymentParams(donateInput);
@@ -24,18 +23,18 @@ export async function makePaymentInput(donateInput: DonateInput, ctx: Context) {
   return {
     yoomoneyId: payment.id,
     status: payment.status,
-    amount: payment.amount.value,
+    amount: donateInput.amount,
     currency: payment.amount.currency,
     description: payment.description,
     email: donateInput.email as string,
     paid: payment.paid,
     metadata: payment.metadata,
     paymentMethod: payment.payment_method as any,
-    paymentMethodId: payment.payment_method_id,
+    paymentMethodId: payment.payment_method.id,
   };
 }
 
-function buildYookassaCreatePaymentParams(donateInput: DonateInput): any {
+function buildYookassaCreatePaymentParams(donateInput: DonateRequestInput): any {
   const { amount, isMonthly, purpose, email } = donateInput;
 
   const paymentParams: any = {

@@ -1,6 +1,6 @@
 import { Payment } from "@a2seven/yoo-checkout";
 import { MockContext, Context, createMockContext } from "../context";
-import { DonateInput, makePaymentInput } from "./donationService";
+import { DonateRequestInput, makeDonationInput } from "./donationService";
 import { createUser, updateUsername } from "./functions-with-context";
 
 let mockCtx: MockContext;
@@ -12,7 +12,7 @@ beforeEach(() => {
 });
 
 test("should make new one-time donation input", async () => {
-  const donateInput: DonateInput = {
+  const donateRequestInput: DonateRequestInput = {
     amount: 1,
     email: "foo@bar.com",
     purpose: "somePurpose",
@@ -23,10 +23,10 @@ test("should make new one-time donation input", async () => {
     id: "2a48f507-000f-5000-8000-1e710a55af02",
     status: "pending",
     amount: {
-      value: "5.00",
+      value: "1.00",
       currency: "RUB",
     },
-    description: "foobar",
+    description: "somePurpose",
     recipient: {
       account_id: "665894",
       gateway_id: "1663878",
@@ -51,13 +51,20 @@ test("should make new one-time donation input", async () => {
 
   mockCtx.yooCheckout.createPayment.mockResolvedValue(yoomoneyResponse);
 
-  const result = await makePaymentInput(donateInput, mockCtx);
+  const result = await makeDonationInput(donateRequestInput, mockCtx);
 
-  expect(result).toBe({
-    v,
+  expect(result).toEqual({
+    yoomoneyId: yoomoneyResponse.id,
+    status: yoomoneyResponse.status,
+    amount: donateRequestInput.amount,
+    currency: yoomoneyResponse.amount.currency,
+    description: donateRequestInput.purpose,
+    email: donateRequestInput.email,
+    paid: yoomoneyResponse.paid,
+    metadata: yoomoneyResponse.metadata,
+    paymentMethod: yoomoneyResponse.payment_method,
+    paymentMethodId: yoomoneyResponse.payment_method.id,
   });
-
-  console.log("result", result);
 
   //   const user = {
   //     id: 1,

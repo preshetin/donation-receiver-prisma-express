@@ -19,6 +19,7 @@ model Post {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  // deletedAt DateTime?
   title     String
   content   String?
   published Boolean  @default(false)
@@ -27,11 +28,12 @@ model Post {
   authorId  Int?
 }
 
-model Payment {
+model Donation {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   yoomoneyId String @unique
+  recurrentDonation RecurrentDonation?
   status String
   amount Decimal
   email String
@@ -42,4 +44,25 @@ model Payment {
   metadata Json
   paymentMethodId String?
   paymentMethod Json?
+}
+
+model RecurrentDonation {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime? //todo: add soft delete middleware
+  initialDonation  Donation  @relation(fields: [initialDonationId], references: [id])
+  initialDonationId Int @unique
+  status String
+  amount Decimal
+  email String
+  isAutomatic Boolean @default(false)
+  currency String
+  description String
+  paid Boolean @default(false)
+  metadata Json
+  paymentMethodId String?
+  hash String
+  paymentMethod Json?
+
 }
