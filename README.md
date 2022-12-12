@@ -1,3 +1,17 @@
+# Donation receiver via Yoomoney
+
+How to make a donation
+
+1. Make this request:
+
+```
+curl -XGET 'http://localhost:3000/donate?amount=88&purpose=ustav-deyatelnost&email=some@email.ru&isMonthly=1'
+```
+
+2. From the request responce, paste a `confirmation_url` in your browser. Make a payment using one of [test cards](https://yookassa.ru/developers/payment-acceptance/testing-and-going-live/testing#test-bank-card-success).
+
+3. TODO: Add webhook URL at https://yookassa.ru/my/merchant/integration/http-notifications to receive notifications on successful payment
+
 # REST API Example
 
 This example shows how to implement a **REST API with TypeScript** using [Express](https://expressjs.com/) and [Prisma Client](https://www.prisma.io/docs/concepts/components/prisma-client). It is based on a SQLite database, you can find the database file with some dummy data at [`./prisma/dev.db`](./prisma/dev.db).
